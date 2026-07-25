@@ -84,4 +84,442 @@ button{font:inherit;cursor:pointer}
   border-radius:2px;padding:0;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:1px;transition:.1s;min-height:44px}
 .cell.pad{border:none;background:none;pointer-events:none}
-.cell .num{font-family:var(--mono);font-size:16
+.cell .num{font-family:var(--mono);font-size:16px;font-weight:500;line-height:1}
+.cell .mark{font-size:12px;font-weight:700;line-height:1;min-height:12px;opacity:0}
+.cell .dot{position:absolute;top:5px;right:5px;width:5px;height:5px;border-radius:50%;
+  background:var(--hol);opacity:0}
+.cell.is-hol{background:var(--holbg)}
+.cell.is-hol .num{color:var(--hol)}
+.cell.is-hol .dot{opacity:1}
+.cell.is-blk{background:repeating-linear-gradient(45deg,#F2F5F6,#F2F5F6 4px,#E0E6E9 4px,#E0E6E9 7px)}
+.cell.is-blk .num{color:#96A5AE}
+.cell:hover:not(.pad){border-color:var(--ink2)}
+.cell.sel-pre{background:var(--pre);border-color:var(--pre)}
+.cell.sel-leave{background:var(--leave);border-color:var(--leave)}
+.cell.sel-pre .num,.cell.sel-pre .mark,.cell.sel-leave .num,.cell.sel-leave .mark{color:#fff}
+.cell.sel-pre .mark,.cell.sel-leave .mark{opacity:1}
+.cell.bad{box-shadow:0 0 0 2px var(--bad);border-color:var(--bad)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;font-size:12px;
+  color:var(--ink2);font-family:var(--mono)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;
+  vertical-align:-1px}
+.holnote{font-size:12px;color:var(--mute);margin:10px 0 0;font-family:var(--mono)}
+
+/* 檢核軌 */
+.rail{background:#fff;border:1px solid var(--line);border-top:2px solid var(--ink);
+  border-radius:3px;margin-bottom:14px}
+.rail-in{padding:0 16px 16px}
+.verdict{margin:0 -16px 13px;padding:13px 16px;display:flex;align-items:center;gap:11px;
+  font-weight:700;font-size:16px;border-bottom:1px solid var(--line)}
+.verdict .icon{font-family:var(--mono);font-size:19px;width:26px;height:26px;flex:none;
+  display:grid;place-items:center;border-radius:50%;color:#fff}
+.verdict.ok{color:#0B4A50}.verdict.ok .icon{background:var(--good)}
+.verdict.no{color:#7A1A12}.verdict.no .icon{background:var(--bad)}
+.verdict.idle{color:var(--mute)}.verdict.idle .icon{background:var(--mute)}
+.meters{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:4px}
+.meter{min-width:104px}
+.meter .mt{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink2);
+  text-transform:uppercase}
+.pips{display:flex;gap:3px;margin:5px 0 3px;min-height:9px}
+.pip{width:15px;height:9px;border:1px solid var(--line);border-radius:1px;background:#fff}
+.pip.on{background:var(--pre);border-color:var(--pre)}
+.pip.over{background:var(--bad);border-color:var(--bad)}
+.meter .mv{font-family:var(--mono);font-size:13px;font-weight:600}
+.meter.bust .mv{color:var(--bad)}
+.msg{font-size:13.5px;padding:8px 11px;border-radius:2px;margin-top:7px;border-left:3px solid}
+.msg.e{background:var(--badbg);border-color:var(--bad);color:#7A1A12}
+.msg.w{background:var(--warnbg);border-color:var(--warn);color:#6B4610}
+.summary{margin-top:13px;border-top:1px solid var(--line);padding-top:12px}
+.summary pre{font-family:var(--mono);font-size:12px;background:#F6F8F9;border:1px solid var(--line);
+  padding:11px;border-radius:2px;white-space:pre-wrap;margin:0 0 9px;line-height:1.65}
+@media (min-width:1000px){
+  .wrap{display:grid;grid-template-columns:1fr 348px;gap:14px;align-items:start}
+  .col-a{grid-column:1;min-width:0}
+  .rail{position:sticky;top:14px;grid-column:2;max-height:calc(100vh - 28px);overflow-y:auto}
+  .meters{flex-direction:column;gap:13px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="mast-in">
+    <div>
+      <p class="eyebrow">奇美醫院 · 急診部</p>
+      <h1>PGY 預假自我檢查</h1>
+      <p class="sub">繳交預約單前先在這裡試排一次。本頁不會儲存或送出任何資料，只做規則檢查。</p>
+    </div>
+    <label>
+      <span class="eyebrow" style="display:block;text-align:right">預假月份</span>
+      <select id="month" aria-label="預假月份"></select>
+    </label>
+  </div>
+</header>
+
+<div class="wrap">
+ <div class="col-a">
+
+  <section class="card">
+    <p class="step">步驟 1</p>
+    <p class="h2">這個月有沒有連續 5 天以上的年假？</p>
+    <div class="modes">
+      <button class="mode" id="modeA" aria-pressed="true">
+        <span class="mode-t"><span class="radio"></span>沒有長假</span>
+        <span class="mode-d">年假、預約不排班都不得連續 5 天，兩者加起來也不行。</span>
+        <span class="mode-q">
+          <span>預約不排班<b>5 天</b></span>
+          <span>其中假日<b>2 天</b></span>
+        </span>
+      </button>
+      <button class="mode" id="modeB" aria-pressed="false">
+        <span class="mode-t"><span class="radio"></span>有長假</span>
+        <span class="mode-d">連續 5 天以上必須整段都是年假，不能接預約不排班。額度縮減。</span>
+        <span class="mode-q">
+          <span>預約不排班<b>3 天</b></span>
+          <span>其中假日<b>1 天</b></span>
+        </span>
+      </button>
+    </div>
+  </section>
+
+  <section class="card">
+    <p class="step">步驟 2</p>
+    <p class="h2">標記日期</p>
+    <div class="brushes">
+      <button class="brush" data-v="預" aria-pressed="true"><span class="sw"></span>預約不排班</button>
+      <button class="brush" data-v="年" aria-pressed="false"><span class="sw"></span>年假</button>
+      <button class="brush" data-v="" aria-pressed="false"><span class="sw"></span>清除</button>
+      <button class="ghost" id="reset" style="margin-left:auto">全部清空</button>
+    </div>
+    <p class="hint">選好筆刷後點日期。點已標記的同類日期會取消標記。</p>
+  </section>
+
+  <section class="card">
+    <div class="dow"><span class="wk">日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span class="wk">六</span></div>
+    <div class="grid" id="grid"></div>
+    <div class="legend">
+      <span><i style="background:var(--holbg);border:1px solid var(--hol)"></i>假日</span>
+      <span><i style="background:repeating-linear-gradient(45deg,#F2F5F6,#F2F5F6 4px,#E0E6E9 4px,#E0E6E9 7px);border:1px solid var(--line)"></i>管制日</span>
+      <span><i style="background:var(--pre)"></i>預約不排班</span>
+      <span><i style="background:var(--leave)"></i>年假</span>
+    </div>
+    <p class="holnote" id="holNote"></p>
+  </section>
+ </div>
+
+ <aside class="rail">
+  <div class="rail-in">
+    <div class="verdict idle" id="verdict"><span class="icon">–</span><span id="vtext">尚未標記任何日期</span></div>
+    <div class="meters">
+      <div class="meter" id="mDays"><div class="mt">預約不排班</div><div class="pips"></div><div class="mv">0 / 5</div></div>
+      <div class="meter" id="mHol"><div class="mt">其中假日</div><div class="pips"></div><div class="mv">0 / 2</div></div>
+      <div class="meter" id="mRun"><div class="mt">最長連續</div><div class="pips"></div><div class="mv">0 / 4</div></div>
+    </div>
+    <div id="msgs"></div>
+    <div class="summary" id="sumBox" hidden>
+      <pre id="sumText"></pre>
+      <button class="ghost" id="copy">複製摘要</button>
+    </div>
+  </div>
+ </aside>
+</div>
+
+<script>
+/* ═══════════ 規則參數 ═══════════ */
+const RULES = {
+  A: {label:'沒有長假', maxDays:5, maxHoliday:2, maxLeaveRun:4},
+  B: {label:'有長假',   maxDays:3, maxHoliday:1, maxLeaveRun:null},
+  maxConsecutive: 4,   // 預約不排班連續上限
+  longThreshold: 5,    // 連續年假達此天數視為長假
+  edgeBlockDays: 1     // 月初、月底各幾天不得預約不排班
+};
+
+/* ═══════════ 假日表 ═══════════
+   依行政院人事行政總處「中華民國115年（2026）」及「116年（2027）」
+   政府行政機關辦公日曆表。兩年均無補班日。週六日由程式自動判定。 */
+const HOL = {
+  // 2026
+  '2026-09-25':'中秋節','2026-09-28':'孔子誕辰紀念日／教師節',
+  '2026-10-09':'國慶日補假','2026-10-10':'國慶日',
+  '2026-10-25':'臺灣光復暨金門古寧頭大捷紀念日','2026-10-26':'光復紀念日補假',
+  '2026-12-25':'行憲紀念日',
+  // 2027
+  '2027-01-01':'開國紀念日',
+  '2027-02-04':'小年夜','2027-02-05':'除夕','2027-02-06':'春節初一',
+  '2027-02-07':'春節初二','2027-02-08':'春節初三',
+  '2027-02-09':'春節補假','2027-02-10':'春節補假',
+  '2027-02-28':'和平紀念日','2027-03-01':'和平紀念日補假',
+  '2027-04-04':'兒童節','2027-04-05':'清明節','2027-04-06':'兒童節補假',
+  '2027-04-30':'勞動節補假','2027-05-01':'勞動節',
+  '2027-06-09':'端午節'
+};
+const MONTHS = ['2026-08','2026-09','2026-10','2026-11','2026-12',
+                '2027-01','2027-02','2027-03','2027-04','2027-05','2027-06','2027-07'];
+const DOWN = ['日','一','二','三','四','五','六'];
+
+/* ═══════════ 狀態 ═══════════ */
+const $ = s => document.querySelector(s);
+const pad = n => n < 10 ? '0' + n : '' + n;
+
+/* 開啟時預設顯示「下個月」；若下個月超出假日表範圍，取最接近的月份 */
+function defaultMonth(){
+  const n = new Date();
+  let y = n.getFullYear(), m = n.getMonth() + 2;   // getMonth() 從 0 起算，+2 即下個月
+  if(m > 12){ m -= 12; y += 1; }
+  const key = y + '-' + pad(m);
+  if(MONTHS.includes(key)) return key;
+  return key < MONTHS[0] ? MONTHS[0] : MONTHS[MONTHS.length - 1];
+}
+
+let YM = defaultMonth(), MODE = 'A', BRUSH = '預', MARKS = {}, DAYS = [];
+
+function buildDays(ym){
+  const [y,m] = ym.split('-').map(Number);
+  const last = new Date(y, m, 0).getDate();
+  const out = [];
+  for(let d = 1; d <= last; d++){
+    const key = y + '-' + pad(m) + '-' + pad(d);
+    const dow = new Date(y, m-1, d).getDay();
+    out.push({key, d, dow,
+      isHoliday: dow===0 || dow===6 || !!HOL[key],
+      holName: HOL[key] || (dow===0 ? '週日' : dow===6 ? '週六' : ''),
+      edgeBlocked: d <= RULES.edgeBlockDays || d > last - RULES.edgeBlockDays});
+  }
+  return out;
+}
+
+/* ═══════════ 規則引擎 ═══════════ */
+function validate(){
+  const seq = DAYS.map(x => ({day:x, type: MARKS[x.key] || ''}));
+  const q = RULES[MODE];
+  const errors = [], warnings = [], badKeys = new Set();
+
+  /* 連續「不上班」區塊：預約不排班與年假一併計算。
+     核心規則：任何連續 5 天以上的區塊，必須整段都是年假。
+       · 整段預約不排班且達 5 天 → 超過連續 4 天上限
+       · 混合年假與預約不排班且達 5 天 → 違規，預假那幾天須改為年假
+       · 整段年假且達 5 天 → 屬長假，只有「有長假」組才允許 */
+  const runs = [];
+  let cur = null;
+  seq.forEach((s,i) => {
+    if(s.type){ cur ? cur.end = i : cur = {start:i, end:i}; }
+    else if(cur){ runs.push(cur); cur = null; }
+    if(i === seq.length-1 && cur){ runs.push(cur); cur = null; }
+  });
+  runs.forEach(r => {
+    r.days = seq.slice(r.start, r.end + 1);
+    r.pre = r.days.filter(x => x.type === '預');
+    r.leave = r.days.filter(x => x.type === '年');
+    r.len = r.days.length;
+    r.span = r.days[0].day.d + '–' + r.days[r.len - 1].day.d + ' 日';
+  });
+
+  const longRuns = [];
+  runs.filter(r => r.len >= RULES.longThreshold).forEach(r => {
+    const mark = () => r.days.forEach(x => badKeys.add(x.day.key));
+    if(!r.leave.length){
+      errors.push(r.span + '連續預約不排班 ' + r.len + ' 天，超過連續 ' +
+        RULES.maxConsecutive + ' 天上限（可間隔一天後再預約）');
+      mark();
+    } else if(r.pre.length){
+      errors.push(r.span + '連續 ' + r.len + ' 天不上班（年假 ' + r.leave.length +
+        ' 天＋預約不排班 ' + r.pre.length + ' 天）。連續 ' + RULES.longThreshold +
+        ' 天以上必須全部以年假請假，請將 ' + r.pre.map(x => x.day.d).join('、') +
+        ' 日改為年假，或縮短到 ' + RULES.maxConsecutive + ' 天以內' +
+        (MODE === 'A' ? '（若改為全段年假，須改選「有長假」）' : ''));
+      mark();
+    } else if(MODE === 'A'){
+      errors.push(r.span + '連續年假 ' + r.len + ' 天已達 ' + RULES.longThreshold +
+        ' 天，屬長假。請改選「有長假」並依請假程序辦理，或縮短到 ' +
+        RULES.maxConsecutive + ' 天以內');
+      mark();
+    } else {
+      longRuns.push(r);
+    }
+  });
+
+  if(MODE === 'B' && !longRuns.length && !errors.length)
+    warnings.push('目前沒有連續 ' + RULES.longThreshold +
+      ' 天以上的年假。若這個月確實沒有長假，請改選「沒有長假」，額度較寬（5 天／假日 2 天）');
+  if(longRuns.length > 1)
+    warnings.push('本月出現 ' + longRuns.length + ' 段 ' + RULES.longThreshold +
+      ' 天以上長假，請先與總醫師確認');
+
+  // 預約不排班額度
+  const pre = seq.filter(s => s.type === '預');
+  const preHol = pre.filter(s => s.day.isHoliday);
+  if(pre.length > q.maxDays)
+    errors.push('預約不排班 ' + pre.length + ' 天，超過上限 ' + q.maxDays + ' 天');
+  if(preHol.length > q.maxHoliday){
+    errors.push('假日預約 ' + preHol.length + ' 天，超過上限 ' + q.maxHoliday + ' 天');
+    preHol.slice(q.maxHoliday).forEach(s => badKeys.add(s.day.key));
+  }
+
+  // 月初月底管制（僅限預約不排班）
+  const edge = pre.filter(s => s.day.edgeBlocked);
+  if(edge.length){
+    errors.push('月初／月底管制日不得預約不排班：' + edge.map(s => s.day.d).join('、') + ' 日');
+    edge.forEach(s => badKeys.add(s.day.key));
+  }
+
+  const leaveCount = seq.filter(s => s.type === '年').length;
+  if(leaveCount) warnings.push('年假 ' + leaveCount + ' 天須另附填妥日期的假卡，本頁不取代假卡');
+
+  const maxRunAll = runs.reduce((a, r) => Math.max(a, r.len), 0);
+  const longLen = longRuns.reduce((a, r) => Math.max(a, r.len), 0);
+
+  return {errors, warnings, badKeys, longRuns: longRuns.length,
+    stats:{pre:pre.length, preMax:q.maxDays, hol:preHol.length, holMax:q.maxHoliday,
+           run:maxRunAll, runMax:RULES.maxConsecutive, longLen, leave:leaveCount}};
+}
+
+/* ═══════════ 月曆 ═══════════ */
+function buildGrid(){
+  DAYS = buildDays(YM);
+  const g = $('#grid'); g.innerHTML = '';
+  for(let i = 0; i < DAYS[0].dow; i++){
+    const p = document.createElement('div'); p.className = 'cell pad'; g.appendChild(p);
+  }
+  DAYS.forEach(d => {
+    const b = document.createElement('button');
+    b.className = 'cell' + (d.isHoliday ? ' is-hol' : '') + (d.edgeBlocked ? ' is-blk' : '');
+    b.dataset.key = d.key;
+    b.title = [d.holName, d.edgeBlocked ? '月初／月底管制日，不得預約不排班' : '']
+      .filter(Boolean).join(' · ');
+    b.setAttribute('aria-label', d.d + ' 日 星期' + DOWN[d.dow] +
+      (HOL[d.key] ? '，' + HOL[d.key] : ''));
+    b.innerHTML = '<span class="dot"></span><span class="num">' + d.d +
+      '</span><span class="mark"></span>';
+    b.onclick = () => {
+      if(BRUSH === '' || MARKS[d.key] === BRUSH) delete MARKS[d.key];
+      else MARKS[d.key] = BRUSH;
+      render();
+    };
+    g.appendChild(b);
+  });
+  const named = DAYS.filter(d => HOL[d.key]);
+  $('#holNote').textContent = named.length
+    ? '本月國定假日：' + named.map(d => d.d + ' 日 ' + HOL[d.key]).join('、')
+    : '本月無國定假日，假日僅週六、週日。';
+}
+
+/* ═══════════ 繪製 ═══════════ */
+function render(){
+  const r = validate();
+
+  document.querySelectorAll('.cell[data-key]').forEach(c => {
+    const v = MARKS[c.dataset.key];
+    c.classList.remove('sel-pre','sel-leave','bad');
+    c.querySelector('.mark').textContent = v || '';
+    if(v === '預') c.classList.add('sel-pre');
+    else if(v) c.classList.add('sel-leave');
+    if(r.badKeys.has(c.dataset.key)) c.classList.add('bad');
+  });
+
+  meter('#mDays', r.stats.pre, r.stats.preMax);
+  meter('#mHol',  r.stats.hol, r.stats.holMax);
+  if(MODE === 'A') meter('#mRun', r.stats.run, r.stats.runMax, '最長連續不上班');
+  else             meter('#mRun', r.stats.longLen, null, '長假天數');
+
+  const v = $('#verdict'), vt = $('#vtext');
+  v.classList.remove('ok','no','idle');
+  const marked = Object.keys(MARKS).length;
+  if(!marked){ v.classList.add('idle'); v.querySelector('.icon').textContent = '–';
+    vt.textContent = '尚未標記任何日期'; }
+  else if(r.errors.length){ v.classList.add('no'); v.querySelector('.icon').textContent = '✕';
+    vt.textContent = '不符規定 · ' + r.errors.length + ' 項'; }
+  else { v.classList.add('ok'); v.querySelector('.icon').textContent = '✓';
+    vt.textContent = '符合規定，可以繳交'; }
+
+  const m = $('#msgs'); m.innerHTML = '';
+  const add = (cls, t) => { const d = document.createElement('div');
+    d.className = 'msg ' + cls; d.textContent = t; m.appendChild(d); };
+  r.errors.forEach(t => add('e', '✕ ' + t));
+  r.warnings.forEach(t => add('w', '! ' + t));
+
+  const box = $('#sumBox');
+  box.hidden = !(marked && !r.errors.length);
+  if(!box.hidden) $('#sumText').textContent = summary(r);
+}
+function meter(sel, val, max, label){
+  const el = $(sel);
+  if(label) el.querySelector('.mt').textContent = label;
+  const p = el.querySelector('.pips'); p.innerHTML = '';
+  if(max == null){
+    el.classList.remove('bust');
+    el.querySelector('.mv').textContent = val ? val + ' 天' : '—';
+    return;
+  }
+  el.classList.toggle('bust', val > max);
+  el.querySelector('.mv').textContent = val + ' / ' + max;
+  for(let i = 0; i < Math.max(max, val); i++){
+    const s = document.createElement('span');
+    s.className = 'pip' + (i < val ? (i < max ? ' on' : ' over') : '');
+    p.appendChild(s);
+  }
+}
+
+/* ═══════════ 摘要（貼到紙本預約單用） ═══════════ */
+function ranges(type){
+  const picked = DAYS.filter(d => MARKS[d.key] === type);
+  const out = []; let s = null, p = null;
+  picked.forEach(d => {
+    if(p && d.d === p.d + 1) p = d;
+    else { if(s) out.push([s,p]); s = d; p = d; }
+  });
+  if(s) out.push([s,p]);
+  return out.map(([a,b]) => a === b
+    ? a.d + '（' + DOWN[a.dow] + '）'
+    : a.d + '（' + DOWN[a.dow] + '）～' + b.d + '（' + DOWN[b.dow] + '）');
+}
+function summary(r){
+  const L = [];
+  L.push(YM.replace('-',' 年 ') + ' 月　預假自我檢查');
+  L.push('模式：' + RULES[MODE].label);
+  const pr = ranges('預'), yr = ranges('年');
+  L.push('預約不排班（' + r.stats.pre + ' 天，含假日 ' + r.stats.hol + ' 天）：' +
+    (pr.length ? pr.join('、') : '無'));
+  L.push('年假（' + r.stats.leave + ' 天）：' + (yr.length ? yr.join('、') : '無'));
+  L.push('檢查結果：符合規定' + (r.warnings.length ? '（有 ' + r.warnings.length + ' 項提醒）' : ''));
+  return L.join('\n');
+}
+
+/* ═══════════ 控制項 ═══════════ */
+MONTHS.forEach(m => $('#month').add(new Option(m.replace('-',' / '), m)));
+$('#month').value = YM;
+$('#month').onchange = e => {
+  if(Object.keys(MARKS).length &&
+     !confirm('切換月份會清空目前的標記，要繼續嗎？')){ e.target.value = YM; return; }
+  YM = e.target.value; MARKS = {}; buildGrid(); render();
+};
+['A','B'].forEach(k => $('#mode' + k).onclick = () => {
+  MODE = k;
+  $('#modeA').setAttribute('aria-pressed', k === 'A');
+  $('#modeB').setAttribute('aria-pressed', k === 'B');
+  render();
+});
+document.querySelectorAll('.brush').forEach(b => b.onclick = () => {
+  BRUSH = b.dataset.v;
+  document.querySelectorAll('.brush').forEach(x =>
+    x.setAttribute('aria-pressed', x.dataset.v === BRUSH));
+});
+$('#reset').onclick = () => { MARKS = {}; render(); };
+$('#copy').onclick = () => {
+  const t = $('#sumText').textContent;
+  const done = () => { $('#copy').textContent = '已複製 ✓';
+    setTimeout(() => $('#copy').textContent = '複製摘要', 1800); };
+  if(navigator.clipboard) navigator.clipboard.writeText(t).then(done, fallback);
+  else fallback();
+  function fallback(){
+    const ta = document.createElement('textarea');
+    ta.value = t; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); done(); }catch(e){ alert('請手動選取複製'); }
+    ta.remove();
+  }
+};
+
+buildGrid(); render();
+</script>
+</body>
+</html>
